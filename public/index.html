@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERMINAL AFK BOT MANAGER</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 15px;
+            background-color: #000000;
+            color: #00ff66;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            height: 100vh;
+            gap: 15px;
+        }
+        .sidebar {
+            width: 400px;
+            background: #050505;
+            border: 1px solid #1a1a1a;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .terminal {
+            flex-grow: 1;
+            background: #000000;
+            border: 1px solid #1a1a1a;
+            padding: 12px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+        h3 {
+            margin: 0 0 10px 0;
+            color: #ffffff;
+            font-size: 13px;
+            text-transform: uppercase;
+            border-bottom: 1px solid #222222;
+            padding-bottom: 5px;
+            letter-spacing: 1px;
+        }
+        .field-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-size: 10px; color: #888888; text-transform: uppercase; }
+        input, select {
+            background: #0a0a0a;
+            border: 1px solid #222222;
+            color: #ffffff;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 12px;
+        }
+        input:focus, select:focus {
+            border-color: #00ff66;
+            outline: none;
+        }
+        .row { display: flex; gap: 8px; }
+        .row > div { flex: 1; }
+        button {
+            background: #111111;
+            border: 1px solid #00ff66;
+            color: #00ff66;
+            padding: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+        button:hover { background: #00ff66; color: #000000; }
+        button.danger { border-color: #ff3333; color: #ff3333; }
+        button.danger:hover { background: #ff3333; color: #000000; }
+        button.action { border-color: #0088ff; color: #0088ff; }
+        button.action:hover { background: #0088ff; color: #000000; }
+        
+        .bot-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid #111111;
+            padding: 5px;
+        }
+        .bot-item {
+            background: #0a0a0a;
+            padding: 8px;
+            border: 1px solid #1a1a1a;
+            font-size: 11px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .bot-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .bot-stats {
+            display: flex;
+            gap: 10px;
+            color: #888888;
+            font-size: 10px;
+        }
+        .status-tag { font-size: 10px; padding: 2px 4px; border: 1px solid #333; }
+        .status-active { border-color: #00ff66; color: #00ff66; }
+        .status-wait { border-color: #ffaa00; color: #ffaa00; }
+        .status-off { border-color: #555555; color: #555555; }
+        
+        .log-line { margin-bottom: 3px; line-height: 1.3; }
+        .log-time { color: #555555; }
+        .log-bot { color: #ffffff; font-weight: bold; }
+        .log-msg-success { color: #00ff66; }
+        .log-msg-error { color: #ff3333; }
+        .log-msg-warn { color: #ffaa00; }
+        .log-msg-chat { color: #aaaaaa; }
+        .log-msg-cmd { color: #0088ff; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h3>> SUNUCU AYARLARI</h3>
+        <div class="row">
+            <div class="field-group">
+                <label>IP Adresi</label>
+                <input type="text" id="host" placeholder="mc.sunucu.com">
+            </div>
+            <div class="field-group" style="flex:0.5;">
+                <label>Port</label>
+                <input type="text" id="port" value="25565">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="field-group">
+                <label>Sürüm</label>
+                <select id="version">
+                    <option value="auto">Otomatik</option>
+                    <option value="1.21.11">1.21.11</option>
+                    <option value="1.20.6">1.20.6</option>
+                    <option value="1.20.4">1.20.4</option>
+                    <option value="1.20.1">1.20.1</option>
+                    <option value="1.19.4">1.19.4</option>
+                    <option value="1.16.5">1.16.5</option>
+                    <option value="1.12.2">1.12.2</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Anti-AFK Modu</label>
+                <select id="antiAfkMode">
+                    <option value="combo">Karma Mod (Zıpla+Bak+Eğil)</option>
+                    <option value="jump">Sadece Zıpla</option>
+                    <option value="sneak">Sadece Eğil/Kalk</option>
+                    <option value="look">Sadece Etrafa Bak</option>
+                </select>
+            </div>
+        </div>
+
+        <h3>> OTO RECONNECT & GİRİŞ</h3>
+        <div class="row">
+            <div class="field-group">
+                <label>Oto Reconnect</label>
+                <select id="autoReconnect">
+                    <option value="true">Açık</option>
+                    <option value="false">Kapalı</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Gecikme (Sn)</label>
+                <input type="number" id="reconnectDelay" value="5" min="2" max="60">
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="field-group">
+                <label>Auto-Login / Register</label>
+                <select id="autoLogin">
+                    <option value="false">Kapalı</option>
+                    <option value="true">Açık</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Şifre</label>
+                <input type="password" id="password" placeholder="Sunucu Şifresi">
+            </div>
+        </div>
+
+        <h3>> BOT YAPILANDIRMASI</h3>
+        <div class="field-group">
+            <label>Özel İsimler (Virgülle Ayır)</label>
+            <input type="text" id="customNames" placeholder="Ahmet, Mehmet, Ali">
+        </div>
+
+        <div class="row">
+            <div class="field-group">
+                <label>Bot Ön Takı (Prefix)</label>
+                <input type="text" id="prefix" value="AfkBot">
+            </div>
+            <div class="field-group">
+                <label>Bot Sayısı</label>
+                <input type="number" id="count" value="3" min="1" max="25">
+            </div>
+        </div>
+
+        <button onclick="startBots()">[+] Botları Başlat</button>
+        <button class="danger" onclick="stopAllBots()">[-] Tümünü Durdur</button>
+
+        <h3>> CHAT & KOMUT KONTROL</h3>
+        <div class="field-group">
+            <label>Hedef Bot</label>
+            <select id="chatTarget">
+                <option value="all">Tüm Aktif Botlar</option>
+            </select>
+        </div>
+        <div class="field-group">
+            <label>Mesaj / Komut</label>
+            <input type="text" id="chatInput" placeholder="/warp pvp veya Sa" onkeypress="if(event.key==='Enter') sendChat()">
+        </div>
+        <button class="action" onclick="sendChat()">[>] Gönder</button>
+
+        <h3>> BOT DURUMLARI</h3>
+        <div class="bot-list" id="botListContainer">
+            <div style="font-size:11px; color:#444;">Çalışan bot yok.</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <h3>> CANLI TERMINAL LOGLARI</h3>
+        <div class="terminal" id="terminal"></div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const terminal = document.getElementById('terminal');
+        const botListContainer = document.getElementById('botListContainer');
+        const chatTargetSelect = document.getElementById('chatTarget');
+
+        socket.on('botListUpdate', (bots) => {
+            const currentSelected = chatTargetSelect.value;
+            chatTargetSelect.innerHTML = '<option value="all">Tüm Aktif Botlar</option>';
+
+            if (bots.length === 0) {
+                botListContainer.innerHTML = '<div style="font-size:11px; color:#444;">Çalışan bot yok.</div>';
+                return;
+            }
+
+            botListContainer.innerHTML = '';
+            bots.forEach(b => {
+                if (b.status.includes('Aktif')) {
+                    const opt = document.createElement('option');
+                    opt.value = b.id;
+                    opt.innerText = b.username;
+                    chatTargetSelect.appendChild(opt);
+                }
+
+                const div = document.createElement('div');
+                div.className = 'bot-item';
+                
+                let statusClass = 'status-off';
+                if (b.status.includes('Aktif')) statusClass = 'status-active';
+                else if (b.status.includes('Bağlanıyor') || b.status.includes('Yeniden')) statusClass = 'status-wait';
+
+                div.innerHTML = `
+                    <div class="bot-item-header">
+                        <span style="font-weight:bold; color:#fff;">${b.username}</span>
+                        <div>
+                            <span class="status-tag ${statusClass}">${b.status}</span>
+                            <button style="padding:2px 5px; font-size:9px;" onclick="stopBot('${b.id}')">X</button>
+                        </div>
+                    </div>
+                    <div class="bot-stats">
+                        <span>CAN: ${b.health}/20</span>
+                        <span>AÇLIK: ${b.food}/20</span>
+                        <span>XYZ: ${b.pos.x}, ${b.pos.y}, ${b.pos.z}</span>
+                    </div>
+                `;
+                botListContainer.appendChild(div);
+            });
+
+            chatTargetSelect.value = currentSelected;
+        });
+
+        socket.on('log', (log) => appendLog(log));
+        socket.on('logs', (logs) => {
+            terminal.innerHTML = '';
+            logs.forEach(appendLog);
+        });
+
+        function appendLog(log) {
+            const div = document.createElement('div');
+            div.className = 'log-line';
+            
+            let msgClass = 'log-msg-chat';
+            if (log.type === 'success') msgClass = 'log-msg-success';
+            if (log.type === 'error') msgClass = 'log-msg-error';
+            if (log.type === 'warn') msgClass = 'log-msg-warn';
+            if (log.type === 'cmd') msgClass = 'log-msg-cmd';
+
+            div.innerHTML = `<span class="log-time">[${log.time}]</span> <span class="log-bot">[${log.botName}]</span> <span class="${msgClass}">${escapeHtml(log.msg)}</span>`;
+            terminal.appendChild(div);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function startBots() {
+            const host = document.getElementById('host').value;
+            if (!host) return alert('Lütfen sunucu IP adresi girin!');
+            
+            socket.emit('startMultipleBots', {
+                host: host,
+                port: document.getElementById('port').value,
+                version: document.getElementById('version').value,
+                prefix: document.getElementById('prefix').value,
+                count: document.getElementById('count').value,
+                customNames: document.getElementById('customNames').value,
+                autoReconnect: document.getElementById('autoReconnect').value === 'true',
+                reconnectDelay: document.getElementById('reconnectDelay').value,
+                autoLogin: document.getElementById('autoLogin').value === 'true',
+                password: document.getElementById('password').value,
+                antiAfkMode: document.getElementById('antiAfkMode').value
+            });
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value;
+            const target = chatTargetSelect.value;
+            if (!message || message.trim() === '') return;
+
+            socket.emit('sendChat', { target, message });
+            input.value = '';
+        }
+
+        function stopBot(botId) {
+            socket.emit('stopBot', botId);
+        }
+
+        function stopAllBots() {
+            socket.emit('stopAllBots');
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+                  </html>
