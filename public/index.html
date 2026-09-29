@@ -2,256 +2,433 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMINAL AFK BOT MANAGER</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minecraft Bot Manager</title>
     <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            padding: 15px;
-            background-color: #000000;
-            color: #00ff66;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            height: 100vh;
-            gap: 15px;
+        :root {
+            --bg-body: #09090b;
+            --bg-card: #18181b;
+            --bg-input: #09090b;
+            --border-color: #27272a;
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
         }
-        .sidebar {
-            width: 400px;
-            background: #050505;
-            border: 1px solid #1a1a1a;
-            padding: 15px;
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent-green);
+            border-radius: 50%;
+        }
+
+        /* MOBILE NAVIGATION TABS */
+        .nav-tabs {
+            display: flex;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 5px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+            background: #27272a33;
+        }
+
+        /* LAYOUT CONTAINER */
+        .container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .panel {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 12px;
+            padding: 14px;
             overflow-y: auto;
+            width: 100%;
         }
-        .main-content {
-            flex-grow: 1;
+
+        /* Desktop View Adjustments */
+        @media (min-width: 900px) {
+            .nav-tabs { display: none; }
+            .panel {
+                display: flex !important;
+                border-right: 1px solid var(--border-color);
+            }
+            .panel-settings { flex: 0.8; max-width: 380px; }
+            .panel-bots { flex: 1; }
+            .panel-console { flex: 1.2; border-right: none; }
+        }
+
+        @media (max-width: 899px) {
+            .panel { display: none; }
+            .panel.active-panel { display: flex; }
+        }
+
+        /* FORM ELEMENTS */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px;
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        .terminal {
-            flex-grow: 1;
-            background: #000000;
-            border: 1px solid #1a1a1a;
-            padding: 12px;
-            overflow-y: auto;
-            font-size: 13px;
-        }
-        h3 {
-            margin: 0 0 10px 0;
-            color: #ffffff;
-            font-size: 13px;
-            text-transform: uppercase;
-            border-bottom: 1px solid #222222;
-            padding-bottom: 5px;
-            letter-spacing: 1px;
-        }
-        .field-group { display: flex; flex-direction: column; gap: 4px; }
-        label { font-size: 10px; color: #888888; text-transform: uppercase; }
-        input, select {
-            background: #0a0a0a;
-            border: 1px solid #222222;
-            color: #ffffff;
-            padding: 8px;
-            font-family: inherit;
+
+        .card-title {
             font-size: 12px;
-        }
-        input:focus, select:focus {
-            border-color: #00ff66;
-            outline: none;
-        }
-        .row { display: flex; gap: 8px; }
-        .row > div { flex: 1; }
-        button {
-            background: #111111;
-            border: 1px solid #00ff66;
-            color: #00ff66;
-            padding: 10px;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: bold;
+            font-weight: 700;
             text-transform: uppercase;
-            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
         }
-        button:hover { background: #00ff66; color: #000000; }
-        button.danger { border-color: #ff3333; color: #ff3333; }
-        button.danger:hover { background: #ff3333; color: #000000; }
-        button.action { border-color: #0088ff; color: #0088ff; }
-        button.action:hover { background: #0088ff; color: #000000; }
-        
-        .bot-list {
+
+        .form-row {
             display: flex;
-            flex-direction: column;
-            gap: 6px;
-            max-height: 220px;
-            overflow-y: auto;
-            border: 1px solid #111111;
-            padding: 5px;
+            gap: 8px;
         }
-        .bot-item {
-            background: #0a0a0a;
-            padding: 8px;
-            border: 1px solid #1a1a1a;
-            font-size: 11px;
+
+        .form-group {
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-        .bot-item-header {
+
+        label {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        input, select {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: 13px;
+            outline: none;
+            width: 100%;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--accent-blue);
+        }
+
+        /* BUTTONS */
+        .btn {
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            width: 100%;
+        }
+
+        .btn-success { background: var(--accent-green); color: #000; }
+        .btn-danger { background: var(--accent-red); color: #fff; }
+        .btn:active { opacity: 0.8; }
+
+        /* BOT LIST CARDS */
+        .bot-card {
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .bot-card-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .bot-stats {
-            display: flex;
-            gap: 10px;
-            color: #888888;
-            font-size: 10px;
+
+        .bot-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: #fff;
         }
-        .status-tag { font-size: 10px; padding: 2px 4px; border: 1px solid #333; }
-        .status-active { border-color: #00ff66; color: #00ff66; }
-        .status-wait { border-color: #ffaa00; color: #ffaa00; }
-        .status-off { border-color: #555555; color: #555555; }
-        
-        .log-line { margin-bottom: 3px; line-height: 1.3; }
-        .log-time { color: #555555; }
-        .log-bot { color: #ffffff; font-weight: bold; }
-        .log-msg-success { color: #00ff66; }
-        .log-msg-error { color: #ff3333; }
-        .log-msg-warn { color: #ffaa00; }
-        .log-msg-chat { color: #aaaaaa; }
-        .log-msg-cmd { color: #0088ff; font-weight: bold; }
+
+        .bot-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .badge-active { background: #10b98122; color: var(--accent-green); border: 1px solid #10b98144; }
+        .badge-wait { background: #f59e0b22; color: var(--accent-yellow); border: 1px solid #f59e0b44; }
+        .badge-off { background: #ef444422; color: var(--accent-red); border: 1px solid #ef444444; }
+
+        .bot-details {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        /* CONSOLE LOGS */
+        .console-box {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-height: 250px;
+        }
+
+        .log-line {
+            word-break: break-all;
+            line-height: 1.4;
+        }
+        .log-time { color: #555; }
+        .log-bot { color: var(--accent-blue); font-weight: bold; }
+        .log-txt-info { color: #ccc; }
+        .log-txt-success { color: var(--accent-green); }
+        .log-txt-error { color: var(--accent-red); }
+        .log-txt-warn { color: var(--accent-yellow); }
+        .log-txt-cmd { color: #60a5fa; }
+        .log-txt-chat { color: #e4e4e7; }
     </style>
 </head>
 <body>
 
-    <div class="sidebar">
-        <h3>> SUNUCU AYARLARI</h3>
-        <div class="row">
-            <div class="field-group">
-                <label>IP Adresi</label>
-                <input type="text" id="host" placeholder="mc.sunucu.com">
-            </div>
-            <div class="field-group" style="flex:0.5;">
-                <label>Port</label>
-                <input type="text" id="port" value="25565">
-            </div>
+    <header>
+        <div class="brand">
+            <div class="brand-dot"></div>
+            BOT MANAGER
         </div>
+        <span style="font-size: 11px; color: var(--text-muted);">Purpur / Paper 1.21.x</span>
+    </header>
 
-        <div class="row">
-            <div class="field-group">
-                <label>Sürüm</label>
-                <select id="version">
-                    <option value="auto">Otomatik</option>
-                    <option value="1.21.11">1.21.11</option>
-                    <option value="1.20.6">1.20.6</option>
-                    <option value="1.20.4">1.20.4</option>
-                    <option value="1.20.1">1.20.1</option>
-                    <option value="1.19.4">1.19.4</option>
-                    <option value="1.16.5">1.16.5</option>
-                    <option value="1.12.2">1.12.2</option>
-                </select>
-            </div>
-            <div class="field-group">
-                <label>Anti-AFK Modu</label>
-                <select id="antiAfkMode">
-                    <option value="combo">Karma Mod (Zıpla+Bak+Eğil)</option>
-                    <option value="jump">Sadece Zıpla</option>
-                    <option value="sneak">Sadece Eğil/Kalk</option>
-                    <option value="look">Sadece Etrafa Bak</option>
-                </select>
-            </div>
-        </div>
-
-        <h3>> OTO RECONNECT & GİRİŞ</h3>
-        <div class="row">
-            <div class="field-group">
-                <label>Oto Reconnect</label>
-                <select id="autoReconnect">
-                    <option value="true">Açık</option>
-                    <option value="false">Kapalı</option>
-                </select>
-            </div>
-            <div class="field-group">
-                <label>Gecikme (Sn)</label>
-                <input type="number" id="reconnectDelay" value="5" min="2" max="60">
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="field-group">
-                <label>Auto-Login / Register</label>
-                <select id="autoLogin">
-                    <option value="false">Kapalı</option>
-                    <option value="true">Açık</option>
-                </select>
-            </div>
-            <div class="field-group">
-                <label>Şifre</label>
-                <input type="password" id="password" placeholder="Sunucu Şifresi">
-            </div>
-        </div>
-
-        <h3>> BOT YAPILANDIRMASI</h3>
-        <div class="field-group">
-            <label>Özel İsimler (Virgülle Ayır)</label>
-            <input type="text" id="customNames" placeholder="Ahmet, Mehmet, Ali">
-        </div>
-
-        <div class="row">
-            <div class="field-group">
-                <label>Bot Ön Takı (Prefix)</label>
-                <input type="text" id="prefix" value="AfkBot">
-            </div>
-            <div class="field-group">
-                <label>Bot Sayısı</label>
-                <input type="number" id="count" value="3" min="1" max="25">
-            </div>
-        </div>
-
-        <button onclick="startBots()">[+] Botları Başlat</button>
-        <button class="danger" onclick="stopAllBots()">[-] Tümünü Durdur</button>
-
-        <h3>> CHAT & KOMUT KONTROL</h3>
-        <div class="field-group">
-            <label>Hedef Bot</label>
-            <select id="chatTarget">
-                <option value="all">Tüm Aktif Botlar</option>
-            </select>
-        </div>
-        <div class="field-group">
-            <label>Mesaj / Komut</label>
-            <input type="text" id="chatInput" placeholder="/warp pvp veya Sa" onkeypress="if(event.key==='Enter') sendChat()">
-        </div>
-        <button class="action" onclick="sendChat()">[>] Gönder</button>
-
-        <h3>> BOT DURUMLARI</h3>
-        <div class="bot-list" id="botListContainer">
-            <div style="font-size:11px; color:#444;">Çalışan bot yok.</div>
-        </div>
+    <!-- Mobil Sekme Menüsü -->
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('settings')">⚙️ Ayarlar</button>
+        <button class="tab-btn" onclick="switchTab('bots')">🤖 Botlar</button>
+        <button class="tab-btn" onclick="switchTab('console')">📜 Konsol</button>
     </div>
 
-    <div class="main-content">
-        <h3>> CANLI TERMINAL LOGLARI</h3>
-        <div class="terminal" id="terminal"></div>
+    <div class="container">
+        
+        <!-- PANEL 1: AYARLAR -->
+        <div class="panel panel-settings active-panel" id="panel-settings">
+            <div class="card">
+                <div class="card-title">Sunucu Bilgileri</div>
+                <div class="form-row">
+                    <div class="form-group" style="flex: 2;">
+                        <label>Sunucu IP / Host</label>
+                        <input type="text" id="host" placeholder="mc.sunucu.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input type="text" id="port" value="25565">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sürüm</label>
+                        <select id="version">
+                            <option value="auto">Otomatik</option>
+                            <option value="1.21.11">1.21.11</option>
+                            <option value="1.20.6">1.20.6</option>
+                            <option value="1.20.4">1.20.4</option>
+                            <option value="1.16.5">1.16.5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Anti-AFK Modu</label>
+                        <select id="antiAfkMode">
+                            <option value="combo">Karma (Zıpla+Bak+Eğil)</option>
+                            <option value="jump">Sadece Zıpla</option>
+                            <option value="sneak">Sadece Eğil/Kalk</option>
+                            <option value="look">Sadece Etrafa Bak</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Giriş & Bağlantı Ayarları</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Giriş Gecikmesi (Sn)</label>
+                        <input type="number" id="joinDelay" value="3.5" step="0.5" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Oto Reconnect (Sn)</label>
+                        <input type="number" id="reconnectDelay" value="5">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Auto-Login</label>
+                        <select id="autoLogin">
+                            <option value="false">Kapalı</option>
+                            <option value="true">Açık</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Şifre</label>
+                        <input type="password" id="password" placeholder="Sunucu Şifresi">
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Bot İsimleri</div>
+                <div class="form-group">
+                    <label>Özel İsimler (Virgülle Ayırın)</label>
+                    <input type="text" id="customNames" placeholder="Oyuncu1, Oyuncu2, Oyuncu3">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ön Takı (Prefix)</label>
+                        <input type="text" id="prefix" value="AfkBot">
+                    </div>
+                    <div class="form-group">
+                        <label>Bot Sayısı</label>
+                        <input type="number" id="count" value="3" min="1" max="20">
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="startBots()">Botları Başlat</button>
+                <button class="btn btn-danger" onclick="stopAllBots()">Tümünü Durdur</button>
+            </div>
+        </div>
+
+        <!-- PANEL 2: BOTLAR VE CHAT -->
+        <div class="panel panel-bots" id="panel-bots">
+            <div class="card">
+                <div class="card-title">Komut / Chat Gönder</div>
+                <div class="form-group">
+                    <label>Hedef</label>
+                    <select id="chatTarget">
+                        <option value="all">Tüm Oyundaki Botlar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mesaj / Komut</label>
+                    <input type="text" id="chatInput" placeholder="/warp pvp veya Selam" onkeypress="if(event.key==='Enter') sendChat()">
+                </div>
+                <button class="btn" onclick="sendChat()">Mesajı İlet</button>
+            </div>
+
+            <div class="card" style="flex: 1;">
+                <div class="card-title">Aktif Bot Listesi</div>
+                <div id="botListContainer" style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto;">
+                    <div style="font-size:12px; color:var(--text-muted); text-align: center; padding: 20px;">
+                        Henüz başlatılan bot bulunmuyor.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PANEL 3: KONSOL LOGLARI -->
+        <div class="panel panel-console" id="panel-console">
+            <div class="card" style="height: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="card-title">Canlı Terminal Logları</div>
+                    <button style="background:none; border:none; color:var(--text-muted); font-size:11px; cursor:pointer;" onclick="clearConsole()">Temizle</button>
+                </div>
+                <div class="console-box" id="consoleBox"></div>
+            </div>
+        </div>
+
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const terminal = document.getElementById('terminal');
+        const consoleBox = document.getElementById('consoleBox');
         const botListContainer = document.getElementById('botListContainer');
         const chatTargetSelect = document.getElementById('chatTarget');
 
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active-panel'));
+
+            event.target.classList.add('active');
+            document.getElementById(`panel-${tabName}`).classList.add('active-panel');
+        }
+
         socket.on('botListUpdate', (bots) => {
             const currentSelected = chatTargetSelect.value;
-            chatTargetSelect.innerHTML = '<option value="all">Tüm Aktif Botlar</option>';
+            chatTargetSelect.innerHTML = '<option value="all">Tüm Oyundaki Botlar</option>';
 
             if (bots.length === 0) {
-                botListContainer.innerHTML = '<div style="font-size:11px; color:#444;">Çalışan bot yok.</div>';
+                botListContainer.innerHTML = '<div style="font-size:12px; color:var(--text-muted); text-align: center; padding: 20px;">Henüz başlatılan bot bulunmuyor.</div>';
                 return;
             }
 
@@ -265,24 +442,24 @@
                 }
 
                 const div = document.createElement('div');
-                div.className = 'bot-item';
-                
-                let statusClass = 'status-off';
-                if (b.status.includes('Aktif')) statusClass = 'status-active';
-                else if (b.status.includes('Bağlanıyor') || b.status.includes('Yeniden')) statusClass = 'status-wait';
+                div.className = 'bot-card';
+
+                let badgeClass = 'badge-off';
+                if (b.status.includes('Aktif')) badgeClass = 'badge-active';
+                else if (b.status.includes('Bağlanıyor') || b.status.includes('Yeniden')) badgeClass = 'badge-wait';
 
                 div.innerHTML = `
-                    <div class="bot-item-header">
-                        <span style="font-weight:bold; color:#fff;">${b.username}</span>
-                        <div>
-                            <span class="status-tag ${statusClass}">${b.status}</span>
-                            <button style="padding:2px 5px; font-size:9px;" onclick="stopBot('${b.id}')">X</button>
+                    <div class="bot-card-top">
+                        <span class="bot-name">${b.username}</span>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <span class="bot-badge ${badgeClass}">${b.status}</span>
+                            <button style="background:none; border:none; color:var(--accent-red); font-weight:bold; cursor:pointer; font-size:14px; padding:0 4px;" onclick="stopBot('${b.id}')">✕</button>
                         </div>
                     </div>
-                    <div class="bot-stats">
-                        <span>CAN: ${b.health}/20</span>
-                        <span>AÇLIK: ${b.food}/20</span>
-                        <span>XYZ: ${b.pos.x}, ${b.pos.y}, ${b.pos.z}</span>
+                    <div class="bot-details">
+                        <span>❤️ ${b.health}/20</span>
+                        <span>🍗 ${b.food}/20</span>
+                        <span>📍 ${b.pos.x}, ${b.pos.y}, ${b.pos.z}</span>
                     </div>
                 `;
                 botListContainer.appendChild(div);
@@ -293,29 +470,30 @@
 
         socket.on('log', (log) => appendLog(log));
         socket.on('logs', (logs) => {
-            terminal.innerHTML = '';
+            consoleBox.innerHTML = '';
             logs.forEach(appendLog);
         });
 
         function appendLog(log) {
             const div = document.createElement('div');
             div.className = 'log-line';
-            
-            let msgClass = 'log-msg-chat';
-            if (log.type === 'success') msgClass = 'log-msg-success';
-            if (log.type === 'error') msgClass = 'log-msg-error';
-            if (log.type === 'warn') msgClass = 'log-msg-warn';
-            if (log.type === 'cmd') msgClass = 'log-msg-cmd';
+
+            let msgClass = 'log-txt-info';
+            if (log.type === 'success') msgClass = 'log-txt-success';
+            if (log.type === 'error') msgClass = 'log-txt-error';
+            if (log.type === 'warn') msgClass = 'log-txt-warn';
+            if (log.type === 'cmd') msgClass = 'log-txt-cmd';
+            if (log.type === 'chat') msgClass = 'log-txt-chat';
 
             div.innerHTML = `<span class="log-time">[${log.time}]</span> <span class="log-bot">[${log.botName}]</span> <span class="${msgClass}">${escapeHtml(log.msg)}</span>`;
-            terminal.appendChild(div);
-            terminal.scrollTop = terminal.scrollHeight;
+            consoleBox.appendChild(div);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
         }
 
         function startBots() {
             const host = document.getElementById('host').value;
-            if (!host) return alert('Lütfen sunucu IP adresi girin!');
-            
+            if (!host) return alert('Lütfen sunucu IP adresi yazın!');
+
             socket.emit('startMultipleBots', {
                 host: host,
                 port: document.getElementById('port').value,
@@ -323,12 +501,18 @@
                 prefix: document.getElementById('prefix').value,
                 count: document.getElementById('count').value,
                 customNames: document.getElementById('customNames').value,
-                autoReconnect: document.getElementById('autoReconnect').value === 'true',
+                autoReconnect: true,
                 reconnectDelay: document.getElementById('reconnectDelay').value,
                 autoLogin: document.getElementById('autoLogin').value === 'true',
                 password: document.getElementById('password').value,
-                antiAfkMode: document.getElementById('antiAfkMode').value
+                antiAfkMode: document.getElementById('antiAfkMode').value,
+                joinDelay: document.getElementById('joinDelay').value
             });
+
+            // Mobilde botlar başladıktan sonra otomatik Botlar sekmesine geç
+            if (window.innerWidth < 900) {
+                switchTab('bots');
+            }
         }
 
         function sendChat() {
@@ -341,17 +525,13 @@
             input.value = '';
         }
 
-        function stopBot(botId) {
-            socket.emit('stopBot', botId);
-        }
-
-        function stopAllBots() {
-            socket.emit('stopAllBots');
-        }
+        function stopBot(botId) { socket.emit('stopBot', botId); }
+        function stopAllBots() { socket.emit('stopAllBots'); }
+        function clearConsole() { consoleBox.innerHTML = ''; }
 
         function escapeHtml(text) {
             return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
     </script>
 </body>
-                  </html>
+</html>
