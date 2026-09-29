@@ -12,21 +12,18 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Bot Veri Deposu
 const botMap = new Map();
 const logs = [];
 
-// Log Ekleme Fonksiyonu
 function addLog(botName, msg, type = 'info') {
     const time = new Date().toLocaleTimeString('tr-TR');
     const logEntry = { time, botName, msg, type };
     logs.push(logEntry);
-    if (logs.length > 300) logs.shift();
+    if (logs.length > 400) logs.shift();
     io.emit('log', logEntry);
-    console.log(`[${time}] [${botName}] ${msg}`);
+    console.log(`[${time}] [${botName}] (${type.toUpperCase()}) ${msg}`);
 }
 
-// Arayüze Bot Durumlarını Gönder
 function emitBotStates() {
     const botStates = [];
     botMap.forEach((val, id) => {
@@ -42,7 +39,6 @@ function emitBotStates() {
     io.emit('botListUpdate', botStates);
 }
 
-// Bot Oluşturma Ana Fonksiyonu
 function createSingleBot(options) {
     const {
         host, port, version, username, id,
@@ -50,13 +46,12 @@ function createSingleBot(options) {
         autoLogin, password, antiAfkMode
     } = options;
 
-    // Önceki izleri temizle
     if (botMap.has(id)) {
         const existing = botMap.get(id);
         if (existing.reconnectTimer) clearTimeout(existing.reconnectTimer);
         if (existing.afkInterval) clearInterval(existing.afkInterval);
         if (existing.bot) {
-            try { existing.bot.quit(); } catch (e) {}
+            try { existing.bot.end(); } catch (e) {}
         }
     }
 
@@ -75,39 +70,58 @@ function createSingleBot(options) {
     });
 
     emitBotStates();
-    addLog(username, 'Sunucuya bağlanıyor...');
+    addLog(username, `${host}:${port} sunucusuna erişim sağlanıyor...`, 'info');
 
-    const bot = mineflayer.createBot({
-        host,
+    const botOptions = {
+        host: host.trim(),
         port: parseInt(port) || 25565,
-        username,
-        version: version && version !== 'auto' ? version : false
-    });
+        username: username.trim(),
+        auth: 'offline', // Korsan/Offline sunucular için kritik zorunlu ayar
+        checkTimeoutInterval: 30000
+    };
+
+    if (version && version !== 'auto') {
+        botOptions.version = version;
+    }
+
+    let bot;
+    try {
+        bot = mineflayer.createBot(botOptions);
+    } catch (err) {
+        addLog(username, `Başlatma Hatası: ${err.message}`, 'error');
+        return;
+    }
 
     const currentEntry = botMap.get(id);
     currentEntry.bot = bot;
 
-    // --- BOT ETKİNLİKLERİ --- //
+    // --- ETKİNLİKLER --- //
 
     bot.on('login', () => {
-        currentEntry.status = 'Aktif (AFK)';
+        currentEntry.status = 'Giriş Yapıldı (Doğuluyor...)';
         emitBotStates();
-        addLog(username, `${host}:${port} sunucusuna giriş yapıldı.`, 'success');
+        addLog(username, 'Sunucu paketi kabul etti, dünyaya giriş bekleniyor...', 'info');
+    });
 
-        // Otomatik Giriş / Kayıt
+    bot.once('spawn', () => {
+        currentEntry.status = 'Aktif (Oyunda)';
+        emitBotStates();
+        addLog(username, 'Dünyada başarıyla doğdu!', 'success');
+
+        // Otomatik Komut / Şifre Girişi
         if (autoLogin && password) {
             setTimeout(() => {
-                bot.chat(`/login ${password}`);
-                bot.chat(`/register ${password} ${password}`);
-                addLog(username, 'Auto-Login/Register komutu gönderildi.', 'cmd');
-            }, 2000);
+                if (currentEntry.status.includes('Aktif')) {
+                    bot.chat(`/login ${password}`);
+                    bot.chat(`/register ${password} ${password}`);
+                    addLog(username, 'Auto-Login / Register komutları iletildi.', 'cmd');
+                }
+            }, 2500);
         }
 
-        // Anti-AFK Rutini Oluştur
         startAntiAfkRoutine(currentEntry, antiAfkMode);
     });
 
-    // Can / Açlık / Konum Güncellemeleri
     bot.on('health', () => {
         if (bot.health !== undefined) currentEntry.health = Math.round(bot.health);
         if (bot.food !== undefined) currentEntry.food = Math.round(bot.food);
@@ -124,25 +138,18 @@ function createSingleBot(options) {
         }
     });
 
-    // Otomatik Yeniden Doğma (Auto Respawn)
     bot.on('death', () => {
-        addLog(username, 'Bot öldü! Otomatik yeniden doğunuyor...', 'warn');
+        addLog(username, 'Bot öldü! Yeniden doğuluyor...', 'warn');
         setTimeout(() => {
-            try {
-                bot.respawn();
-                addLog(username, 'Yeniden doğdu.', 'success');
-            } catch (e) {
-                addLog(username, `Yeniden doğma hatası: ${e.message}`, 'error');
-            }
-        }, 1000);
+            try { bot.respawn(); } catch (e) {}
+        }, 1500);
     });
 
-    // Chat Mesajları
     bot.on('message', (message) => {
-        addLog(username, message.toString(), 'chat');
+        const txt = message.toString().trim();
+        if (txt) addLog(username, txt, 'chat');
     });
 
-    // Kopma ve Hata Yönetimi
     function handleDisconnect(reason) {
         if (currentEntry.afkInterval) clearInterval(currentEntry.afkInterval);
         if (currentEntry.manualStop) return;
@@ -151,7 +158,7 @@ function createSingleBot(options) {
             const delaySec = parseInt(reconnectDelay) || 5;
             currentEntry.status = `Yeniden Bağlanıyor (${delaySec}s)`;
             emitBotStates();
-            addLog(username, `${reason} - ${delaySec} sn sonra tekrar bağlanılacak...`, 'warn');
+            addLog(username, `${reason} - ${delaySec} sn sonra tekrar denenecek.`, 'warn');
 
             currentEntry.reconnectTimer = setTimeout(() => {
                 if (!currentEntry.manualStop) {
@@ -161,71 +168,67 @@ function createSingleBot(options) {
         } else {
             currentEntry.status = 'Kapalı';
             emitBotStates();
-            addLog(username, `${reason} - Otomatik bağlanma kapalı.`);
+            addLog(username, `${reason} - Otomatik tekrar bağlanma kapalı.`);
         }
     }
 
     bot.on('kicked', (reason) => {
-        addLog(username, `Sunucudan atıldı: ${reason}`, 'error');
-        handleDisconnect('Atıldı');
+        let parsedReason = reason;
+        try { parsedReason = JSON.parse(reason).text || reason; } catch(e) {}
+        addLog(username, `Atıldı: ${parsedReason}`, 'error');
+        handleDisconnect('Sunucudan Atıldı');
     });
 
-    bot.on('end', () => {
+    bot.on('end', (reason) => {
         if (!currentEntry.manualStop && !currentEntry.status.includes('Yeniden Bağlanıyor')) {
-            addLog(username, 'Sunucu bağlantısı koptu.');
-            handleDisconnect('Bağlantı Koptu');
+            handleDisconnect(`Bağlantı Sonlandı (${reason || 'Bilinmeyen Nedun'})`);
         } else if (currentEntry.manualStop) {
             currentEntry.status = 'Kapalı';
             emitBotStates();
-            addLog(username, 'Bağlantı kesildi (Durduruldu).');
+            addLog(username, 'Bağlantı manuel kapatıldı.');
         }
     });
 
     bot.on('error', (err) => {
-        addLog(username, `Hata: ${err.message}`, 'error');
+        addLog(username, `Bağlantı Hatası: ${err.message}`, 'error');
     });
 }
 
-// Anti-AFK Hareket Mantığı
 function startAntiAfkRoutine(entry, mode) {
     if (entry.afkInterval) clearInterval(entry.afkInterval);
 
     entry.afkInterval = setInterval(() => {
         const bot = entry.bot;
-        if (!bot || entry.status !== 'Aktif (AFK)') return;
+        if (!bot || !entry.status.includes('Aktif')) return;
 
         try {
             if (mode === 'jump' || mode === 'combo') {
                 bot.setControlState('jump', true);
-                setTimeout(() => bot.setControlState('jump', false), 400);
+                setTimeout(() => bot.setControlState('jump', false), 350);
             }
-
             if (mode === 'sneak' || mode === 'combo') {
                 setTimeout(() => {
                     bot.setControlState('sneak', true);
-                    setTimeout(() => bot.setControlState('sneak', false), 800);
-                }, 1000);
+                    setTimeout(() => bot.setControlState('sneak', false), 600);
+                }, 800);
             }
-
             if (mode === 'look' || mode === 'combo') {
                 const yaw = (Math.random() * Math.PI * 2) - Math.PI;
-                const pitch = (Math.random() * Math.PI / 2) - (Math.PI / 4);
+                const pitch = (Math.random() * Math.PI / 4) - (Math.PI / 8);
                 bot.look(yaw, pitch, true);
             }
         } catch (e) {}
-    }, 60000); // 1 Dakikada bir hareket döngüsü
+    }, 45000); // 45 Saniyede bir Anti-AFK hareketi
 }
 
-// Socket.io İletişim Hattı
 io.on('connection', (socket) => {
     emitBotStates();
     socket.emit('logs', logs);
 
-    // Toplu Bot Başlat
     socket.on('startMultipleBots', (data) => {
         const {
             host, port, version, prefix, count, customNames,
-            autoReconnect, reconnectDelay, autoLogin, password, antiAfkMode
+            autoReconnect, reconnectDelay, autoLogin, password, antiAfkMode, joinDelay
         } = data;
 
         let namesToUse = [];
@@ -237,6 +240,8 @@ io.on('connection', (socket) => {
                 namesToUse.push(`${prefix}_${i}`);
             }
         }
+
+        const delayBetweenJoins = (parseInt(joinDelay) || 3.5) * 1000;
 
         namesToUse.forEach((name, index) => {
             const botId = `bot_${name}`;
@@ -253,11 +258,10 @@ io.on('connection', (socket) => {
                     password,
                     antiAfkMode: antiAfkMode || 'combo'
                 });
-            }, index * 1500);
+            }, index * delayBetweenJoins); // Anti-Bot yakalanmamak için sırayla girtir
         });
     });
 
-    // Chat / Komut Gönder
     socket.on('sendChat', (data) => {
         const { target, message } = data;
         if (!message || message.trim().length === 0) return;
@@ -265,34 +269,32 @@ io.on('connection', (socket) => {
         if (target === 'all') {
             let sentCount = 0;
             botMap.forEach((val) => {
-                if (val.bot && val.status === 'Aktif (AFK)') {
+                if (val.bot && val.status.includes('Aktif')) {
                     val.bot.chat(message);
-                    addLog(val.username, `[GÖNDERİLDİ] ${message}`, 'cmd');
                     sentCount++;
                 }
             });
-            if (sentCount === 0) addLog('SİSTEM', 'Aktif bot bulunamadı.', 'error');
+            addLog('TOPLU CHAT', `[${sentCount} Bot] -> ${message}`, 'cmd');
         } else {
             if (botMap.has(target)) {
                 const item = botMap.get(target);
-                if (item.bot && item.status === 'Aktif (AFK)') {
+                if (item.bot && item.status.includes('Aktif')) {
                     item.bot.chat(message);
                     addLog(item.username, `[GÖNDERİLDİ] ${message}`, 'cmd');
                 } else {
-                    addLog('SİSTEM', `${item.username} aktif değil!`, 'error');
+                    addLog('SİSTEM', `${item.username} oyunda değil!`, 'error');
                 }
             }
         }
     });
 
-    // Bot Durdurma İşlemleri
     socket.on('stopBot', (botId) => {
         if (botMap.has(botId)) {
             const item = botMap.get(botId);
             item.manualStop = true;
             if (item.reconnectTimer) clearTimeout(item.reconnectTimer);
             if (item.afkInterval) clearInterval(item.afkInterval);
-            if (item.bot) item.bot.quit();
+            if (item.bot) try { item.bot.end(); } catch(e){}
             item.status = 'Kapatıldı';
             emitBotStates();
             addLog(item.username, 'Bot durduruldu.');
@@ -304,7 +306,7 @@ io.on('connection', (socket) => {
             val.manualStop = true;
             if (val.reconnectTimer) clearTimeout(val.reconnectTimer);
             if (val.afkInterval) clearInterval(val.afkInterval);
-            if (val.bot) val.bot.quit();
+            if (val.bot) try { val.bot.end(); } catch(e){}
             val.status = 'Kapatıldı';
         });
         emitBotStates();
@@ -312,11 +314,10 @@ io.on('connection', (socket) => {
     });
 });
 
-// Render Keep-Alive Self Ping (Her 5 dakikada bir)
 setInterval(() => {
     http.get(`http://localhost:${PORT}`, () => {}).on('error', () => {});
 }, 300000);
 
 server.listen(PORT, () => {
-    console.log(`[SİSTEM] Gelişmiş Terminal Dashboard ${PORT} portunda aktif.`);
+    console.log(`[SİSTEM] Mobil Uyumlu Bot Manager ${PORT} portunda çalışıyor.`);
 });
